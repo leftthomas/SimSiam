@@ -11,7 +11,7 @@ class ProxyLinear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         # init proxy vector as unit random vector
-        self.weight = nn.Parameter(torch.randn(out_features, in_features))
+        self.register_buffer('weight', torch.randn(out_features, in_features))
 
     def forward(self, x):
         normalized_weight = F.normalize(self.weight, dim=-1)

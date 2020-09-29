@@ -7,7 +7,7 @@ A PyTorch implementation of Embedding Disentanglement based on the paper [Embedd
 - [Anaconda](https://www.anaconda.com/download/)
 - [PyTorch](https://pytorch.org)
 ```
-conda install pytorch torchvision cudatoolkit=10.0 -c pytorch
+conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 ```
 - pretrainedmodels
 ```
@@ -32,6 +32,7 @@ optional arguments:
 --backbone_type               backbone network type [default value is 'resnet50'](choices=['resnet50', 'inception', 'googlenet'])
 --feature_dim                 feature dim [default value is 512]
 --temperature                 temperature scale used in temperature softmax [default value is 0.03]
+--momentum                    momentum used for the update of moving proxies [default value is 0.5]
 --recalls                     selected recall [default value is '1,2,4,8']
 --batch_size                  training batch size [default value is 128]
 --lr                          learning rate [default value is 1e-4]
@@ -43,14 +44,14 @@ optional arguments:
 python test.py --retrieval_num 10
 optional arguments:
 --query_img_name              query image name [default value is '/home/data/car/uncropped/008055.jpg']
---data_base                   queried database [default value is 'car_resnet50_512_0.03_data_base.pth']
+--data_base                   queried database [default value is 'car_resnet50_512_0.03_0.5_data_base.pth']
 --retrieval_num               retrieval number [default value is 8]
 ```
 
 ## Benchmarks
 The models are trained on one NVIDIA Tesla 1070 (8G) GPU. `temperature` is `0.03` for `CARS196` and `CUB200` datasets, 
 `0.05` for `SOP` and `In-shop` datasets. `lr` is `1e-4` for `CARS196` and `CUB200` datasets, `4e-5` for `SOP` and `In-shop` datasets, 
-other hyper-parameters are the default values.
+`momentum` is `0.5` for `CARS196` and `CUB200` datasets, `0.95` for `SOP` and `In-shop` datasets, other hyper-parameters are the default values.
 
 ### CARS196
 <table>
