@@ -1,8 +1,7 @@
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms, datasets
-import numpy as np
+from torchvision import transforms
 
 
 class Identity(object):
@@ -75,14 +74,12 @@ def set_bn_eval(m):
         m.eval()
 
 
-def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_labels=None, binary=False):
+def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_labels=None):
     num_features = len(feature_labels)
     feature_labels = torch.tensor(feature_labels, device=feature_vectors.device)
     gallery_vectors = feature_vectors if gallery_vectors is None else gallery_vectors
 
     sim_matrix = torch.mm(feature_vectors, gallery_vectors.t().contiguous())
-    if binary:
-        sim_matrix = sim_matrix / feature_vectors.size(-1)
 
     if gallery_labels is None:
         sim_matrix.fill_diagonal_(0)
@@ -97,28 +94,3 @@ def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_
         acc_list.append((torch.sum(correct) / num_features).item())
     return acc_list
 
-
-# use fold 0, the first 7 classes as train classes, and the remaining classes as novel test classes
-# <=60 samples for each test class, only used for toy example
-class STL10(datasets.STL10):
-    def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
-        super().__init__(root, 'train' if train else 'test', 0, transform, target_transform, download)
-        datas, targets, counts = [], [], [0, 0, 0]
-        for data, target in zip(self.data, self.labels):
-            if train:
-                if target < 7:
-                    datas.append(data)
-                    targets.append(target)
-            else:
-                if target >= 7:
-                    if counts[target - 7] >= 60:
-                        continue
-                    else:
-                        counts[target - 7] += 1
-                        datas.append(data)
-                        targets.append(target - 7)
-        if train:
-            self.classes = self.classes[:7]
-        else:
-            self.classes = self.classes[7:]
-        self.data, self.labels = np.stack(datas, axis=0), np.stack(targets, axis=0)
