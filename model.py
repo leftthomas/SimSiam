@@ -45,7 +45,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         features = self.backbone(x)
-        feature = F.normalize(self.refactor(features), dim=-1)
+        global_feature = F.layer_norm(features, features.size()[1:])
+        feature = F.normalize(self.refactor(global_feature), dim=-1)
         classes = self.fc(feature)
         return feature, classes
-
