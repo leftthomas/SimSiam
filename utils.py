@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -77,12 +78,20 @@ def set_bn_eval(m):
 def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_labels=None):
     num_features = len(feature_labels)
     feature_labels = torch.tensor(feature_labels, device=feature_vectors.device)
+    # [N, K, D/K]
     gallery_vectors = feature_vectors if gallery_vectors is None else gallery_vectors
 
-    sim_matrix = torch.mm(feature_vectors, gallery_vectors.t().contiguous())
+    sim_matrix = []
+    feature_weights = torch.softmax(torch.norm(feature_vectors, dim=-1), dim=1)
+    for i in range(feature_vectors.size(1)):
+        feature_vector = F.normalize(feature_vectors[:, i, :], dim=-1)
+        gallery_vector = F.normalize(gallery_vectors[:, i, :], dim=-1)
+        sim_matrix.append(torch.mm(feature_vector, gallery_vector.t().contiguous()))
+    sim_matrix = torch.sum(torch.stack(sim_matrix, dim=-1) * feature_weights, dim=-1)
 
     if gallery_labels is None:
-        sim_matrix.fill_diagonal_(0)
+        # TODO test fill 0 or -1
+        sim_matrix.fill_diagonal_(-1)
         gallery_labels = feature_labels
     else:
         gallery_labels = torch.tensor(gallery_labels, device=feature_vectors.device)

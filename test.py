@@ -3,13 +3,14 @@ import os
 import shutil
 
 import torch
+import torch.nn.functional as F
 from PIL import Image, ImageDraw
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Test Model')
     parser.add_argument('--query_img_name', default='/home/data/car/uncropped/008055.jpg', type=str,
                         help='query image name')
-    parser.add_argument('--data_base', default='car_resnet50_512_0.03_0.5_data_base.pth',
+    parser.add_argument('--data_base', default='car_resnet50_512_4_0.03_0.5_data_base.pth',
                         type=str, help='queried database')
     parser.add_argument('--retrieval_num', default=8, type=int, help='retrieval number')
 
@@ -31,8 +32,16 @@ if __name__ == '__main__':
     gallery_labels = torch.tensor(data_base['{}_labels'.format('test' if data_name != 'isc' else 'gallery')])
     gallery_features = data_base['{}_features'.format('test' if data_name != 'isc' else 'gallery')]
 
-    sim_matrix = torch.mm(query_feature.unsqueeze(0), gallery_features.t().contiguous()).squeeze()
+    sim_matrix = []
+    feature_weights = torch.softmax(torch.norm(query_feature, dim=-1), dim=0)
+    for i in range(feature_weights.size(0)):
+        feature_vector = F.normalize(query_feature[i, :].unsqueeze(0), dim=-1)
+        gallery_vector = F.normalize(gallery_features[:, i, :], dim=-1)
+        sim_matrix.append(torch.mm(feature_vector, gallery_vector.t().contiguous()).squeeze())
+    sim_matrix = torch.sum(torch.stack(sim_matrix, dim=-1) * feature_weights.unsqueeze(0), dim=-1)
+
     if data_name != 'isc':
+        # TODO test fill 0 or -1
         sim_matrix[query_index] = 0.0
     idx = sim_matrix.topk(k=retrieval_num, dim=-1)[1]
 

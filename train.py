@@ -27,17 +27,22 @@ def train(net, optim):
     total_loss, total_correct, total_num, data_bar = 0.0, 0.0, 0, tqdm(train_data_loader, dynamic_ncols=True)
     for inputs, labels in data_bar:
         inputs, labels = inputs.cuda(), labels.cuda()
-        features, classes = net(inputs)
+        # [B, K, D/K], [B, K, N]
+        embeddings, outputs = net(inputs)
+        features = F.normalize(embeddings, dim=-1)
+        classes = torch.sum(outputs, dim=1)
         loss = loss_criterion(classes / temperature, labels)
         optim.zero_grad()
         loss.backward()
         optim.step()
 
         # update weight
-        updated_weight = F.normalize(net.fc.weight.clone().detach(), dim=-1).index_select(0, labels) * (1.0 - momentum)
-        net.fc.weight.index_copy_(0, labels, updated_weight)
-        updated_feature = features.clone().detach() * momentum
-        net.fc.weight.index_add_(0, labels, updated_feature)
+        for i in range(k):
+            updated_weight = F.normalize(net.fc[i].weight.clone().detach(), dim=-1).index_select(0, labels) * (
+                        1.0 - momentum)
+            net.fc[i].weight.index_copy_(0, labels, updated_weight)
+            updated_feature = features[:, i, :].clone().detach() * momentum
+            net.fc[i].weight.index_add_(0, labels, updated_feature)
 
         pred = torch.argmax(classes, dim=-1)
         total_loss += loss.item() * inputs.size(0)
@@ -57,8 +62,8 @@ def test(net, recall_ids):
             eval_dict[key]['features'] = []
             for inputs, labels in tqdm(eval_dict[key]['data_loader'], desc='processing {} data'.format(key),
                                        dynamic_ncols=True):
-                features, classes = net(inputs.cuda())
-                eval_dict[key]['features'].append(features)
+                embeddings, outputs = net(inputs.cuda())
+                eval_dict[key]['features'].append(embeddings)
             eval_dict[key]['features'] = torch.cat(eval_dict[key]['features'], dim=0)
 
         # compute recall metric
@@ -83,6 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('--backbone_type', default='resnet50', type=str, choices=['resnet50', 'inception', 'googlenet'],
                         help='backbone network type')
     parser.add_argument('--feature_dim', default=512, type=int, help='feature dim')
+    parser.add_argument('--k', default=4, type=int, help='feature num')
     parser.add_argument('--temperature', default=0.03, type=float, help='temperature scale used in temperature softmax')
     parser.add_argument('--momentum', default=0.5, type=float, help='momentum used for the update of moving proxies')
     parser.add_argument('--recalls', default='1,2,4,8', type=str, help='selected recall')
@@ -94,8 +100,8 @@ if __name__ == '__main__':
     # args parse
     data_path, data_name, backbone_type, feature_dim = opt.data_path, opt.data_name, opt.backbone_type, opt.feature_dim
     temperature, momentum, batch_size, num_epochs = opt.temperature, opt.momentum, opt.batch_size, opt.num_epochs
-    lr, recalls = opt.lr, [int(k) for k in opt.recalls.split(',')]
-    save_name_pre = '{}_{}_{}_{}_{}'.format(data_name, backbone_type, feature_dim, temperature, momentum)
+    lr, k, recalls = opt.lr, opt.k, [int(k) for k in opt.recalls.split(',')]
+    save_name_pre = '{}_{}_{}_{}_{}_{}'.format(data_name, backbone_type, feature_dim, k, temperature, momentum)
 
     results = {'train_loss': [], 'train_accuracy': []}
     for recall_id in recalls:
@@ -113,7 +119,7 @@ if __name__ == '__main__':
         eval_dict['gallery'] = {'data_loader': gallery_data_loader}
 
     # model setup, optimizer config and loss definition
-    model = Model(backbone_type, feature_dim, len(train_data_set.class_to_idx)).cuda()
+    model = Model(backbone_type, feature_dim, k, len(train_data_set.class_to_idx)).cuda()
     optimizer = Adam(model.parameters(), lr=lr)
     lr_scheduler = StepLR(optimizer, step_size=num_epochs // 2, gamma=0.1)
     loss_criterion = nn.CrossEntropyLoss()
