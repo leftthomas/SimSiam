@@ -41,8 +41,7 @@ if __name__ == '__main__':
     sim_matrix = torch.sum(torch.stack(sim_matrix, dim=-1) * feature_weights.unsqueeze(0), dim=-1)
 
     if data_name != 'isc':
-        # TODO test fill 0 or -1
-        sim_matrix[query_index] = 0.0
+        sim_matrix[query_index] = -1
     idx = sim_matrix.topk(k=retrieval_num, dim=-1)[1]
 
     result_path = 'results/{}'.format(query_img_name.split('/')[-1].split('.')[0])
