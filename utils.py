@@ -86,11 +86,10 @@ def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_
     for i in range(feature_vectors.size(1)):
         feature_vector = F.normalize(feature_vectors[:, i, :], dim=-1)
         gallery_vector = F.normalize(gallery_vectors[:, i, :], dim=-1)
-        sim_matrix.append(torch.mm(feature_vector, gallery_vector.t().contiguous()))
-    sim_matrix = torch.sum(torch.stack(sim_matrix, dim=-1) * feature_weights, dim=-1)
+        sim_matrix.append(torch.mm(feature_vector, gallery_vector.t().contiguous()) * feature_weights[:, i])
+    sim_matrix = torch.sum(torch.stack(sim_matrix, dim=0), dim=0)
 
     if gallery_labels is None:
-        # TODO test fill 0 or -1
         sim_matrix.fill_diagonal_(-1)
         gallery_labels = feature_labels
     else:
