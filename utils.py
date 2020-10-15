@@ -82,7 +82,8 @@ def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_
     gallery_vectors = feature_vectors if gallery_vectors is None else gallery_vectors
 
     sim_matrix = []
-    feature_weights = torch.softmax(torch.norm(feature_vectors, dim=-1), dim=1)
+    norm = torch.norm(feature_vectors, dim=-1)
+    feature_weights = norm / torch.sum(norm, dim=1, keepdim=True)
     for i in range(feature_vectors.size(1)):
         feature_vector = F.normalize(feature_vectors[:, i, :], dim=-1)
         gallery_vector = F.normalize(gallery_vectors[:, i, :], dim=-1)

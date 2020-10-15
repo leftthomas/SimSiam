@@ -33,7 +33,8 @@ if __name__ == '__main__':
     gallery_features = data_base['{}_features'.format('test' if data_name != 'isc' else 'gallery')]
 
     sim_matrix = []
-    feature_weights = torch.softmax(torch.norm(query_feature, dim=-1), dim=0)
+    norm = torch.norm(query_feature, dim=-1)
+    feature_weights = norm / torch.sum(norm, dim=0, keepdim=True)
     for i in range(feature_weights.size(0)):
         feature_vector = F.normalize(query_feature[i, :].unsqueeze(0), dim=-1)
         gallery_vector = F.normalize(gallery_features[:, i, :], dim=-1)

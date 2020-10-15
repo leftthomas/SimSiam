@@ -63,5 +63,5 @@ class Model(nn.Module):
         # [B, K, D/K], [B, K, 1]
         embeddings, norms = torch.stack(embeddings, dim=1), torch.stack(norms, dim=1)
         # [B, K, N]
-        outputs = torch.stack(outputs, dim=1) * torch.softmax(norms, dim=1)
+        outputs = torch.stack(outputs, dim=1) * (norms / torch.sum(norms, dim=1, keepdim=True))
         return embeddings, outputs
