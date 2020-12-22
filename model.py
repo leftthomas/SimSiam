@@ -6,28 +6,25 @@ from torchvision.models import resnet50, googlenet
 
 
 class ProxyLinear(nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(self, num_proxy, in_features):
         super(ProxyLinear, self).__init__()
+        self.num_proxy = num_proxy
         self.in_features = in_features
-        self.out_features = out_features
         # init proxy vector as unit random vector
-        self.register_buffer('weight', torch.randn(out_features, in_features))
+        self.weight = nn.Parameter(F.normalize(torch.randn(num_proxy, in_features), dim=-1))
 
     def forward(self, x):
-        normalized_x = F.normalize(x, dim=-1)
         normalized_weight = F.normalize(self.weight, dim=-1)
-        output = normalized_x.mm(normalized_weight.t())
+        output = x.mm(normalized_weight.t())
         return output
 
     def extra_repr(self):
-        return 'in_features={}, out_features={}'.format(self.in_features, self.out_features)
+        return 'num_proxy={}, in_features={}'.format(self.num_proxy, self.in_features)
 
 
 class Model(nn.Module):
-    def __init__(self, backbone_type, feature_dim, k, num_classes):
+    def __init__(self, backbone_type, feature_dim, num_classes):
         super().__init__()
-
-        assert feature_dim % k == 0, 'feature_dim must be divided by k'
 
         # Backbone Network
         backbones = {'resnet50': (resnet50, 2048), 'inception': (bninception, 1024), 'googlenet': (googlenet, 1024)}
@@ -42,26 +39,12 @@ class Model(nn.Module):
         self.backbone = backbone
 
         # Refactor Layer
-        self.k = k
-        self.refactor = nn.ModuleList([nn.Linear(middle_dim, feature_dim // k, bias=False) for _ in range(k)])
-
-        # Classification Layer
-        self.fc = nn.ModuleList([ProxyLinear(feature_dim // k, num_classes) for _ in range(k)])
+        self.refactor = nn.Linear(middle_dim, feature_dim, bias=False)
+        self.fc = ProxyLinear(num_classes, feature_dim)
 
     def forward(self, x):
         features = self.backbone(x)
-        global_feature = F.layer_norm(features, features.size()[1:])
-        embeddings, norms, outputs = [], [], []
-        for i in range(self.k):
-            # [B, D/K]
-            feature = self.refactor[i](global_feature)
-            embeddings.append(feature)
-            norm = torch.norm(feature, dim=-1, keepdim=True)
-            norms.append(norm)
-            classes = self.fc[i](feature)
-            outputs.append(classes)
-        # [B, K, D/K], [B, K, 1]
-        embeddings, norms = torch.stack(embeddings, dim=1), torch.stack(norms, dim=1)
-        # [B, K, N]
-        outputs = torch.stack(outputs, dim=1) * (norms / torch.sum(norms, dim=1, keepdim=True))
-        return embeddings, outputs
+        features = F.layer_norm(features, features.size()[1:])
+        features = F.normalize(self.refactor(features), dim=-1)
+        classes = self.fc(features)
+        return features, classes

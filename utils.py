@@ -1,6 +1,8 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
+from torch import nn
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -42,7 +44,7 @@ class ImageReader(Dataset):
         if data_type == 'train':
             self.transform = transforms.Compose([
                 RGBToBGR() if backbone_type == 'inception' else Identity(),
-                transforms.RandomResizedCrop(256),
+                transforms.RandomResizedCrop(224),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 ScaleIntensities([0, 1], [0, 255]) if backbone_type == 'inception' else Identity(),
@@ -50,7 +52,7 @@ class ImageReader(Dataset):
         else:
             self.transform = transforms.Compose([
                 RGBToBGR() if backbone_type == 'inception' else Identity(),
-                transforms.Resize(292), transforms.CenterCrop(256),
+                transforms.Resize(256), transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 ScaleIntensities([0, 1], [0, 255]) if backbone_type == 'inception' else Identity(),
                 normalize])
@@ -75,31 +77,34 @@ def set_bn_eval(m):
         m.eval()
 
 
-def recall(feature_vectors, feature_labels, rank, gallery_vectors=None, gallery_labels=None):
-    num_features = len(feature_labels)
+def recall(feature_vectors, feature_labels, rank):
     feature_labels = torch.tensor(feature_labels, device=feature_vectors.device)
-    # [N, K, D/K]
-    gallery_vectors = feature_vectors if gallery_vectors is None else gallery_vectors
-
-    sim_matrix = []
-    norm = torch.norm(feature_vectors, dim=-1)
-    feature_weights = norm / torch.sum(norm, dim=1, keepdim=True)
-    for i in range(feature_vectors.size(1)):
-        feature_vector = F.normalize(feature_vectors[:, i, :], dim=-1)
-        gallery_vector = F.normalize(gallery_vectors[:, i, :], dim=-1)
-        sim_matrix.append(torch.mm(feature_vector, gallery_vector.t().contiguous()) * feature_weights[:, i])
-    sim_matrix = torch.sum(torch.stack(sim_matrix, dim=0), dim=0)
-
-    if gallery_labels is None:
-        sim_matrix.fill_diagonal_(-1)
-        gallery_labels = feature_labels
-    else:
-        gallery_labels = torch.tensor(gallery_labels, device=feature_vectors.device)
+    sim_matrix = feature_vectors.mm(feature_vectors.t())
+    sim_matrix.fill_diagonal_(-np.inf)
 
     idx = sim_matrix.topk(k=rank[-1], dim=-1, largest=True)[1]
     acc_list = []
     for r in rank:
-        correct = (gallery_labels[idx[:, 0:r]] == feature_labels.unsqueeze(dim=-1)).any(dim=-1).float()
-        acc_list.append((torch.sum(correct) / num_features).item())
+        correct = (torch.eq(feature_labels[idx[:, 0:r]], feature_labels.unsqueeze(dim=-1))).any(dim=-1)
+        acc_list.append((torch.sum(correct) / correct.size(0)).item())
     return acc_list
 
+
+class ProxyAnchorLoss(nn.Module):
+    def __init__(self, scale=32, margin=0.1):
+        super(ProxyAnchorLoss, self).__init__()
+        self.scale = scale
+        self.margin = margin
+
+    def forward(self, output, label):
+        pos_label = F.one_hot(label, num_classes=output.size(-1))
+        neg_label = 1 - pos_label
+        pos_num = torch.sum(torch.ne(pos_label.sum(dim=0), 0))
+        pos_output = torch.exp(-self.scale * (output - self.margin))
+        neg_output = torch.exp(self.scale * (output + self.margin))
+        pos_output = (torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output))).sum(dim=0)
+        neg_output = (torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output))).sum(dim=0)
+        pos_loss = torch.sum(torch.log(pos_output + 1)) / pos_num
+        neg_loss = torch.sum(torch.log(neg_output + 1)) / output.size(-1)
+        loss = pos_loss + neg_loss
+        return loss
