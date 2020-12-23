@@ -9,7 +9,7 @@ fi
 if [ -n "$2" ]; then
   size=$2
 else
-  size=64
+  size=48
 fi
 
 if [ -n "$3" ]; then

@@ -42,7 +42,7 @@ optional arguments:
 --data_name                   dataset name [default value is 'car'](choices=['car', 'cub'])
 --backbone_type               backbone network type [default value is 'resnet50'](choices=['resnet50', 'inception', 'googlenet'])
 --feature_dim                 feature dim [default value is 512]
---batch_size                  training batch size [default value is 64]
+--batch_size                  training batch size [default value is 48]
 --num_epochs                  training epoch number [default value is 20]
 --warm_up                     warm up number [default value is 2]
 --recalls                     selected recall [default value is '1,2,4,8']
