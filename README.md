@@ -41,6 +41,7 @@ optional arguments:
 --data_path                   datasets path [default value is '/home/data']
 --data_name                   dataset name [default value is 'car'](choices=['car', 'cub'])
 --backbone_type               backbone network type [default value is 'resnet50'](choices=['resnet50', 'inception', 'googlenet'])
+--loss_name                   loss name [default value is 'normalized_softmax*'](choices=['normalized_softmax*', 'normalized_softmax'])
 --feature_dim                 feature dim [default value is 512]
 --batch_size                  training batch size [default value is 48]
 --num_epochs                  training epoch number [default value is 20]
@@ -54,7 +55,7 @@ optional arguments:
 python test.py --retrieval_num 10
 optional arguments:
 --query_img_name              query image name [default value is '/home/data/car/uncropped/008055.jpg']
---data_base                   queried database [default value is 'car_resnet50_512_data_base.pth']
+--data_base                   queried database [default value is 'car_resnet50_normalized_softmax*_512_data_base.pth']
 --retrieval_num               retrieval number [default value is 8]
 ```
 
@@ -62,8 +63,8 @@ optional arguments:
 
 The models are trained on one NVIDIA GeForce GTX 1070 (8G) GPU. `AdamP` is used to optimize the model, `lr` is `1e-2`
 for the parameters of `proxies` and `1e-4` for other parameters, every `5 steps` the `lr` is reduced by `2`.
-`scale` is `32` and `margin` is `0.1`, a `layer_norm` op is injected to centering the embedding, other hyper-parameters
-are the default values.
+`scale` is `20`, a `layer_norm` op is injected to centering the embedding, other hyper-parameters are the default
+values.
 
 ### CARS196
 

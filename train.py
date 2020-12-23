@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from adamp import AdamP
 from torch.backends import cudnn
 from torch.optim.lr_scheduler import StepLR
@@ -23,17 +24,34 @@ def train(net, optim):
     net.train()
     # fix bn on backbone network
     net.backbone.apply(set_bn_eval)
-    total_loss, total_correct, total_num = 0.0, 0.0, 0
+    total_loss, total_correct, total_num, features, targets = 0.0, 0.0, 0, [], []
     data_bar = tqdm(train_data_loader, dynamic_ncols=True)
     for inputs, labels in data_bar:
         inputs, labels = inputs.cuda(), labels.cuda()
-        feature, output = net(inputs)
+        feature, normalized_weight, output = net(inputs)
         loss = loss_criterion(output, labels)
         optim.zero_grad()
+
+        # handle the grad passed to proxies
+        def hook_fn(grad):
+            with torch.no_grad():
+                if '*' in loss_name:
+                    pos_label = F.one_hot(labels, num_classes=output.size(-1))
+                    weight = (F.softmax(output * loss_criterion.scale, dim=-1) - 1) * loss_criterion.scale
+                    pos_weight = torch.where(torch.eq(pos_label, 1), weight, torch.zeros_like(output))
+                    grad = pos_weight.t().mm(feature)
+                    count = pos_label.sum(dim=0)
+                    count = torch.where(torch.ne(count, 0), count, torch.ones_like(count))
+                    grad = grad / count.unsqueeze(dim=-1)
+                return grad
+
+        normalized_weight.register_hook(hook_fn)
         loss.backward()
         optim.step()
 
         with torch.no_grad():
+            features.append(feature)
+            targets.append(labels)
             pred = torch.argmax(output, dim=-1)
             total_loss += loss.item() * inputs.size(0)
             total_correct += torch.sum(torch.eq(pred, labels)).item()
@@ -41,6 +59,11 @@ def train(net, optim):
             data_bar.set_description('Train Epoch {}/{} - Loss:{:.4f} - Acc:{:.2f}%'
                                      .format(epoch, num_epochs, total_loss / total_num,
                                              total_correct / total_num * 100))
+    features = torch.cat(features, dim=0)
+    targets = torch.cat(targets, dim=0)
+    data_base['train_features'] = features
+    data_base['train_labels'] = targets
+    data_base['train_proxies'] = F.normalize(net.fc.weight.data, dim=-1)
     return total_loss / total_num, total_correct / total_num * 100
 
 
@@ -50,7 +73,7 @@ def test(net, recall_ids):
     with torch.no_grad():
         features = []
         for inputs, labels in tqdm(test_data_loader, desc='processing test data', dynamic_ncols=True):
-            feature, _ = net(inputs.cuda())
+            feature, _, __ = net(inputs.cuda())
             features.append(feature)
         features = torch.cat(features, dim=0)
         # compute recall metric
@@ -70,6 +93,8 @@ if __name__ == '__main__':
     parser.add_argument('--data_name', default='car', type=str, choices=['car', 'cub'], help='dataset name')
     parser.add_argument('--backbone_type', default='resnet50', type=str, choices=['resnet50', 'inception', 'googlenet'],
                         help='backbone network type')
+    parser.add_argument('--loss_name', default='normalized_softmax*', type=str,
+                        choices=['normalized_softmax*', 'normalized_softmax'], help='loss name')
     parser.add_argument('--feature_dim', default=512, type=int, help='feature dim')
     parser.add_argument('--batch_size', default=48, type=int, help='training batch size')
     parser.add_argument('--num_epochs', default=20, type=int, help='training epoch number')
@@ -78,10 +103,10 @@ if __name__ == '__main__':
 
     opt = parser.parse_args()
     # args parse
-    data_path, data_name, backbone_type = opt.data_path, opt.data_name, opt.backbone_type
+    data_path, data_name, backbone_type, loss_name = opt.data_path, opt.data_name, opt.backbone_type, opt.loss_name
     feature_dim, batch_size, num_epochs = opt.feature_dim, opt.batch_size, opt.num_epochs
     warm_up, recalls = opt.warm_up, [int(k) for k in opt.recalls.split(',')]
-    save_name_pre = '{}_{}_{}'.format(data_name, backbone_type, feature_dim)
+    save_name_pre = '{}_{}_{}_{}'.format(data_name, backbone_type, loss_name, feature_dim)
 
     results = {'train_loss': [], 'train_accuracy': []}
     for recall_id in recalls:
