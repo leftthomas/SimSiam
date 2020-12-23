@@ -96,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss_name', default='normalized_softmax*', type=str,
                         choices=['normalized_softmax*', 'normalized_softmax'], help='loss name')
     parser.add_argument('--feature_dim', default=512, type=int, help='feature dim')
-    parser.add_argument('--batch_size', default=48, type=int, help='training batch size')
+    parser.add_argument('--batch_size', default=64, type=int, help='training batch size')
     parser.add_argument('--num_epochs', default=20, type=int, help='training epoch number')
     parser.add_argument('--warm_up', default=2, type=int, help='warm up number')
     parser.add_argument('--recalls', default='1,2,4,8', type=str, help='selected recall')
