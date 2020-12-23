@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model import Model
-from utils import recall, ImageReader, set_bn_eval, ProxyAnchorLoss
+from utils import recall, ImageReader, set_bn_eval, NormalizedSoftmaxLoss
 
 # for reproducibility
 np.random.seed(1)
@@ -96,9 +96,9 @@ if __name__ == '__main__':
     # model setup, optimizer config and loss definition
     model = Model(backbone_type, feature_dim, len(train_data_set.class_to_idx)).cuda()
     optimizer = AdamP([{'params': model.backbone.parameters()}, {'params': model.refactor.parameters()},
-                       {'params': model.fc.parameters(), 'lr': 1e-2}], lr=1e-4)
+                       {'params': model.fc.parameters(), 'lr': 4e-1}], lr=4e-6)
     lr_scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
-    loss_criterion = ProxyAnchorLoss()
+    loss_criterion = NormalizedSoftmaxLoss()
 
     data_base = {'test_images': test_data_set.images, 'test_labels': test_data_set.labels}
     best_recall = 0.0
