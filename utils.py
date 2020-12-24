@@ -118,13 +118,12 @@ class BalancedProxyLoss(nn.Module):
 
     def forward(self, output, label):
         pos_label = F.one_hot(label, num_classes=output.size(-1))
-        neg_label = 1 - pos_label
-        pos_num = torch.sum(torch.ne(pos_label.sum(dim=0), 0))
+        pos_index = torch.nonzero(pos_label.sum(dim=0)).squeeze(dim=-1)
         pos_output = torch.exp(-self.scale * (output - self.margin))
         neg_output = torch.exp(self.scale * (output + self.margin))
         pos_output = (torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output))).sum(dim=0)
-        neg_output = (torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output))).sum(dim=0)
-        pos_loss = torch.sum(torch.log(pos_output + 1)) / pos_num
-        neg_loss = torch.sum(torch.log(neg_output + 1)) / output.size(-1)
+        neg_output = (torch.where(torch.eq(pos_label, 0), neg_output, torch.zeros_like(neg_output))).sum(dim=0)
+        pos_loss = torch.mean(torch.log(pos_output[pos_index] + 1))
+        neg_loss = torch.mean(torch.log(neg_output[pos_index] + 1))
         loss = pos_loss + neg_loss
         return loss
