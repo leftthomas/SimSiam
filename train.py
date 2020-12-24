@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model import Model
-from utils import recall, ImageReader, set_bn_eval, NormalizedSoftmaxLoss
+from utils import recall, ImageReader, set_bn_eval, ProxyAnchorLoss, BalancedProxyLoss
 
 # for reproducibility
 np.random.seed(1)
@@ -28,24 +28,9 @@ def train(net, optim):
     data_bar = tqdm(train_data_loader, dynamic_ncols=True)
     for inputs, labels in data_bar:
         inputs, labels = inputs.cuda(), labels.cuda()
-        feature, normalized_weight, output = net(inputs)
+        feature, output = net(inputs)
         loss = loss_criterion(output, labels)
         optim.zero_grad()
-
-        # handle the grad passed to proxies
-        def hook_fn(grad):
-            with torch.no_grad():
-                if '*' in loss_name:
-                    pos_label = F.one_hot(labels, num_classes=output.size(-1))
-                    weight = (F.softmax(output * loss_criterion.scale, dim=-1) - 1) * loss_criterion.scale
-                    pos_weight = torch.where(torch.eq(pos_label, 1), weight, torch.zeros_like(output))
-                    grad = pos_weight.t().mm(feature)
-                    count = pos_label.sum(dim=0)
-                    count = torch.where(torch.ne(count, 0), count, torch.ones_like(count))
-                    grad = grad / count.unsqueeze(dim=-1)
-                return grad
-
-        normalized_weight.register_hook(hook_fn)
         loss.backward()
         optim.step()
 
@@ -73,7 +58,7 @@ def test(net, recall_ids):
     with torch.no_grad():
         features = []
         for inputs, labels in tqdm(test_data_loader, desc='processing test data', dynamic_ncols=True):
-            feature, _, __ = net(inputs.cuda())
+            feature, _ = net(inputs.cuda())
             features.append(feature)
         features = torch.cat(features, dim=0)
         # compute recall metric
@@ -93,8 +78,8 @@ if __name__ == '__main__':
     parser.add_argument('--data_name', default='car', type=str, choices=['car', 'cub'], help='dataset name')
     parser.add_argument('--backbone_type', default='resnet50', type=str, choices=['resnet50', 'inception', 'googlenet'],
                         help='backbone network type')
-    parser.add_argument('--loss_name', default='normalized_softmax*', type=str,
-                        choices=['normalized_softmax*', 'normalized_softmax'], help='loss name')
+    parser.add_argument('--loss_name', default='balanced_proxy', type=str,
+                        choices=['balanced_proxy', 'proxy_anchor'], help='loss name')
     parser.add_argument('--feature_dim', default=512, type=int, help='feature dim')
     parser.add_argument('--batch_size', default=64, type=int, help='training batch size')
     parser.add_argument('--num_epochs', default=20, type=int, help='training epoch number')
@@ -123,7 +108,7 @@ if __name__ == '__main__':
     optimizer = AdamP([{'params': model.backbone.parameters()}, {'params': model.refactor.parameters()},
                        {'params': model.fc.parameters(), 'lr': 1e-2}], lr=1e-4)
     lr_scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
-    loss_criterion = NormalizedSoftmaxLoss()
+    loss_criterion = BalancedProxyLoss() if loss_name == 'balanced_proxy' else ProxyAnchorLoss()
 
     data_base = {'test_images': test_data_set.images, 'test_labels': test_data_set.labels}
     best_recall = 0.0

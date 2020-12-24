@@ -32,7 +32,7 @@ fi
 
 data_name=("car" "cub")
 backbone_type=("resnet50" "inception" "googlenet")
-loss_name=("normalized_softmax*" "normalized_softmax")
+loss_name=("balanced_proxy" "proxy_anchor")
 
 for data in ${data_name[*]}; do
   for backbone in ${backbone_type[*]}; do

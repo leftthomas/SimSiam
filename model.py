@@ -16,7 +16,7 @@ class ProxyLinear(nn.Module):
     def forward(self, x):
         normalized_weight = F.normalize(self.weight, dim=-1)
         output = x.mm(normalized_weight.t())
-        return normalized_weight, output
+        return output
 
     def extra_repr(self):
         return 'num_proxy={}, in_features={}'.format(self.num_proxy, self.in_features)
@@ -46,5 +46,5 @@ class Model(nn.Module):
         features = self.backbone(x)
         features = F.layer_norm(features, features.size()[1:])
         features = F.normalize(self.refactor(features), dim=-1)
-        normalized_weight, classes = self.fc(features)
-        return features, normalized_weight, classes
+        classes = self.fc(features)
+        return features, classes
