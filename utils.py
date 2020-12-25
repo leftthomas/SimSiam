@@ -127,7 +127,8 @@ class BalancedProxyLoss(nn.Module):
 
         # sort and select the harder negative samples for each proxy
         neg_output, _ = torch.sort(neg_output.t(), dim=-1, descending=True)
-        neg_count = (neg_label.sum(dim=0) * self.ratio).long().unsqueeze(dim=-1)
+        neg_count = (neg_label.sum(dim=0) * self.ratio).unsqueeze(dim=-1)
+        neg_count = torch.where(torch.ne(neg_count, 0), neg_count, torch.ones_like(neg_count))
         neg_index = torch.arange(neg_output.size(-1), device=neg_output.device).unsqueeze(dim=0)
         neg_output = torch.where(torch.lt(neg_index, neg_count), neg_output, torch.zeros_like(neg_output)).sum(dim=-1)
 
