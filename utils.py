@@ -111,25 +111,27 @@ class ProxyAnchorLoss(nn.Module):
 
 
 class BalancedProxyLoss(nn.Module):
-    def __init__(self, scale=32, margin=0.1):
+    def __init__(self, scale=32, margin=0.1, ratio=1.0):
         super(BalancedProxyLoss, self).__init__()
         self.scale = scale
         self.margin = margin
+        self.ratio = ratio
 
     def forward(self, output, label):
         pos_label = F.one_hot(label, num_classes=output.size(-1))
         neg_label = 1 - pos_label
         pos_output = torch.exp(-self.scale * (output - self.margin))
         neg_output = torch.exp(self.scale * (output + self.margin))
-        pos_output = torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output))
+        pos_output = torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output)).sum(dim=0)
         neg_output = torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output))
-        # sort and select the harder samples for each proxy
-        pos_output, _ = torch.sort(pos_output.t(), dim=-1, descending=True)
-        neg_output, _ = torch.sort(neg_output.t(), dim=-1, descending=True)
-        pos_output = torch.where(torch.ne(pos_output, 0), pos_output, torch.zeros_like(pos_output)).sum(dim=-1)
-        neg_output = torch.where(torch.ne(neg_output, 0), neg_output, torch.zeros_like(neg_output)).sum(dim=-1)
-        index = torch.nonzero(pos_output).squeeze()
 
+        # sort and select the harder negative samples for each proxy
+        neg_output, _ = torch.sort(neg_output.t(), dim=-1, descending=True)
+        neg_count = (neg_label.sum(dim=0) * self.ratio).long().unsqueeze(dim=-1)
+        neg_index = torch.arange(neg_output.size(-1), device=neg_output.device).unsqueeze(dim=0)
+        neg_output = torch.where(torch.lt(neg_index, neg_count), neg_output, torch.zeros_like(neg_output)).sum(dim=-1)
+
+        index = torch.nonzero(pos_output).squeeze()
         pos_loss = torch.mean(torch.log(pos_output[index] + 1))
         neg_loss = torch.mean(torch.log(neg_output[index] + 1))
         loss = pos_loss + neg_loss
