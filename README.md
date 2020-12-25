@@ -1,6 +1,7 @@
 # BalancedProxy
 
-A PyTorch implementation of Balanced Proxy Loss based on PRL paper [Positive Proxy Loss for Deep Metric Learning](https://arxiv.org/abs/2003.13911).
+A PyTorch implementation of Balanced Proxy Loss based on PRL
+paper [Balanced Proxy Loss for Deep Metric Learning](https://arxiv.org/abs/2003.13911).
 
 ## Requirements
 
@@ -47,6 +48,8 @@ optional arguments:
 --warm_up                     warm up number [default value is 2]
 --recalls                     selected recall [default value is '1,2,4,8']
 ```
+
+You also could use `run.sh` to train all the combinations of hyper-parameters.
 
 ### Test Model
 
