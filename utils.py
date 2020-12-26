@@ -132,8 +132,5 @@ class BalancedProxyLoss(nn.Module):
         neg_index = torch.arange(neg_output.size(-1), device=neg_output.device).unsqueeze(dim=0)
         neg_output = torch.where(torch.lt(neg_index, neg_count), neg_output, torch.zeros_like(neg_output)).sum(dim=-1)
 
-        index = torch.nonzero(pos_output).squeeze()
-        pos_loss = torch.mean(torch.log(pos_output[index] + 1))
-        neg_loss = torch.mean(torch.log(neg_output[index] + 1))
-        loss = pos_loss + neg_loss
+        loss = torch.mean(torch.log(pos_output + neg_output + 1))
         return loss
