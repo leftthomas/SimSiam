@@ -102,8 +102,8 @@ class ProxyAnchorLoss(nn.Module):
         pos_num = torch.sum(torch.ne(pos_label.sum(dim=0), 0))
         pos_output = torch.exp(-self.scale * (output - self.margin))
         neg_output = torch.exp(self.scale * (output + self.margin))
-        pos_output = (torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output))).sum(dim=0)
-        neg_output = (torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output))).sum(dim=0)
+        pos_output = torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output)).sum(dim=0)
+        neg_output = torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output)).sum(dim=0)
         pos_loss = torch.sum(torch.log(pos_output + 1)) / pos_num
         neg_loss = torch.sum(torch.log(neg_output + 1)) / output.size(-1)
         loss = pos_loss + neg_loss
@@ -111,11 +111,10 @@ class ProxyAnchorLoss(nn.Module):
 
 
 class BalancedProxyLoss(nn.Module):
-    def __init__(self, scale=32, margin=0.1, ratio=1.0):
+    def __init__(self, scale=32, margin=0.1):
         super(BalancedProxyLoss, self).__init__()
         self.scale = scale
         self.margin = margin
-        self.ratio = ratio
 
     def forward(self, output, label):
         pos_label = F.one_hot(label, num_classes=output.size(-1))
@@ -123,14 +122,6 @@ class BalancedProxyLoss(nn.Module):
         pos_output = torch.exp(-self.scale * (output - self.margin))
         neg_output = torch.exp(self.scale * (output + self.margin))
         pos_output = torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output)).sum(dim=0)
-        neg_output = torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output))
-
-        # sort and select the harder negative samples for each proxy
-        neg_output, _ = torch.sort(neg_output.t(), dim=-1, descending=True)
-        neg_count = (neg_label.sum(dim=0) * self.ratio).unsqueeze(dim=-1)
-        neg_count = torch.where(torch.ne(neg_count, 0), neg_count, torch.ones_like(neg_count))
-        neg_index = torch.arange(neg_output.size(-1), device=neg_output.device).unsqueeze(dim=0)
-        neg_output = torch.where(torch.lt(neg_index, neg_count), neg_output, torch.zeros_like(neg_output)).sum(dim=-1)
-
+        neg_output = torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output)).sum(dim=0)
         loss = torch.mean(torch.log(pos_output + neg_output + 1))
         return loss
