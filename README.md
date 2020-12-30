@@ -1,7 +1,7 @@
 # BalancedProxy
 
 A PyTorch implementation of Balanced Proxy Loss based on PRL
-paper [Balanced Proxy Loss for Deep Metric Learning](https://arxiv.org/abs/2003.13911).
+paper [Balanced proxy loss for fine-grained image retrieval]().
 
 ## Requirements
 
@@ -41,7 +41,6 @@ optional arguments:
 --data_path                   datasets path [default value is '/home/data']
 --data_name                   dataset name [default value is 'car'](choices=['car', 'cub'])
 --backbone_type               backbone network type [default value is 'resnet50'](choices=['resnet50', 'inception', 'googlenet'])
---loss_name                   loss name [default value is 'balanced_proxy'](choices=['balanced_proxy', 'proxy_anchor'])
 --feature_dim                 feature dim [default value is 512]
 --batch_size                  training batch size [default value is 64]
 --num_epochs                  training epoch number [default value is 20]
@@ -49,15 +48,13 @@ optional arguments:
 --recalls                     selected recall [default value is '1,2,4,8']
 ```
 
-You also could use `run.sh` to train all the combinations of hyper-parameters.
-
 ### Test Model
 
 ```
 python test.py --retrieval_num 10
 optional arguments:
 --query_img_name              query image name [default value is '/home/data/car/uncropped/008055.jpg']
---data_base                   queried database [default value is 'car_resnet50_balanced_proxy_512_data_base.pth']
+--data_base                   queried database [default value is 'car_resnet50_512_data_base.pth']
 --retrieval_num               retrieval number [default value is 8]
 ```
 
@@ -65,8 +62,8 @@ optional arguments:
 
 The models are trained on one NVIDIA GeForce GTX 1070 (8G) GPU. `AdamP` is used to optimize the model, `lr` is `1e-2`
 for the parameters of `proxies` and `1e-4` for other parameters, every `5 steps` the `lr` is reduced by `2`.
-`scale` is `32`, a `layer_norm` op is injected to centering the embedding, other hyper-parameters are the default
-values.
+`scale` is `32` and `margin` is `0.1`, a `layer_norm` op is injected to centering the embedding, other hyper-parameters
+are the default values.
 
 ### CARS196
 
@@ -84,27 +81,27 @@ values.
   <tbody>
     <tr>
       <td align="center">ResNet50</td>
-      <td align="center">88.5%</td>
-      <td align="center">93.1%</td>
-      <td align="center">95.8%</td>
-      <td align="center">97.7%</td>
-      <td align="center"><a href="https://pan.baidu.com/s/1ig6gwBBSm0EPzesL5KytYQ">5bww</a></td>
+      <td align="center">88.3%</td>
+      <td align="center">93.0%</td>
+      <td align="center">95.9%</td>
+      <td align="center">97.6%</td>
+      <td align="center"><a href="https://pan.baidu.com/s/1cechFLcP_Tv5ozQ4Dm5ZcA">miyk</a></td>
     </tr>
     <tr>
       <td align="center">Inception</td>
-      <td align="center">85.5%</td>
-      <td align="center">91.5%</td>
-      <td align="center">95.0%</td>
-      <td align="center">97.2%</td>
-      <td align="center"><a href="https://pan.baidu.com/s/1-wVIlNjiqiUUD1kRh8Efww">r6e7</a></td>
+      <td align="center">84.3%</td>
+      <td align="center">91.0%</td>
+      <td align="center">94.5%</td>
+      <td align="center">96.8%</td>
+      <td align="center"><a href="https://pan.baidu.com/s/1J-WimV1MgudF0t9fWPZwqg">7573</a></td>
     </tr>
     <tr>
       <td align="center">GoogLeNet</td>
-      <td align="center">78.1%</td>
-      <td align="center">86.4%</td>
-      <td align="center">91.5%</td>
-      <td align="center">94.9%</td>
-      <td align="center"><a href="https://pan.baidu.com/s/1hMjWx9MG_40oHz6uBqe6OQ">espu</a></td>
+      <td align="center">76.4%</td>
+      <td align="center">84.5%</td>
+      <td align="center">90.3%</td>
+      <td align="center">94.3%</td>
+      <td align="center"><a href="https://pan.baidu.com/s/13GnKR6-nAmMuKSy8rvTPJg">f5g9</a></td>
     </tr>
   </tbody>
 </table>
@@ -125,27 +122,27 @@ values.
   <tbody>
     <tr>
       <td align="center">ResNet50</td>
-      <td align="center">67.7%</td>
-      <td align="center">78.4%</td>
-      <td align="center">85.8%</td>
-      <td align="center">91.0%</td>
-      <td align="center"><a href="https://pan.baidu.com/s/128SGDlxV1Cd8gPJEi7Z4gA">73h5</a></td>
+      <td align="center">69.7%</td>
+      <td align="center">79.5%</td>
+      <td align="center">86.6%</td>
+      <td align="center">91.8%</td>
+      <td align="center"><a href="https://pan.baidu.com/s/1L5bgT9LbDtoFppMzXlkAmQ">zh2f</a></td>
     </tr>
     <tr>
       <td align="center">Inception</td>
-      <td align="center">68.3%</td>
-      <td align="center">78.7%</td>
-      <td align="center">85.9%</td>
-      <td align="center">90.8%</td>
-      <td align="center"><a href="https://pan.baidu.com/s/1i97a8vr3Le_9Bk-L0cTJug">u5b9</a></td>
+      <td align="center">68.1%</td>
+      <td align="center">78.1%</td>
+      <td align="center">85.8%</td>
+      <td align="center">91.5%</td>
+      <td align="center"><a href="https://pan.baidu.com/s/1QfLyavni5yHBqwJuNuTnGg">x3b2</a></td>
     </tr>
     <tr>
       <td align="center">GoogLeNet</td>
-      <td align="center">62.4%</td>
-      <td align="center">73.0%</td>
-      <td align="center">82.7%</td>
-      <td align="center">89.3%</td>
-      <td align="center"><a href="https://pan.baidu.com/s/1R6qnPfyBEKysCzWTdnO_6Q">anbq</a></td>
+      <td align="center">62.2%</td>
+      <td align="center">73.6%</td>
+      <td align="center">82.5%</td>
+      <td align="center">89.1%</td>
+      <td align="center"><a href="https://pan.baidu.com/s/15V_xm7dtohVrtWA7t26zVA">g33m</a></td>
     </tr>
   </tbody>
 </table>
