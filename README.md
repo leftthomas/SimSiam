@@ -18,12 +18,6 @@ conda install pytorch torchvision cudatoolkit=11.0 -c pytorch
 pip install pretrainedmodels
 ```
 
-- AdamP
-
-```
-pip install adamp
-```
-
 ## Datasets
 
 [CARS196](http://ai.stanford.edu/~jkrause/cars/car_dataset.html)
@@ -60,10 +54,10 @@ optional arguments:
 
 ## Benchmarks
 
-The models are trained on one NVIDIA GeForce GTX 1070 (8G) GPU. `AdamP` is used to optimize the model, `lr` is `1e-2`
+The models are trained on one NVIDIA GeForce GTX 1070 (8G) GPU. `lr` is `1e-2`
 for the parameters of `proxies` and `1e-4` for other parameters, every `5 steps` the `lr` is reduced by `2`.
-`scale` is `32` and `margin` is `0.1`, a `layer_norm` op is injected to centering the embedding, other hyper-parameters
-are the default values.
+`scale` is `32` and `margin` is `0.1`, `weight decay` is used, a `layer_norm` op is injected to centering the embedding,
+other hyper-parameters are the default values.
 
 ### CARS196
 
