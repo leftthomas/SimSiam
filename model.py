@@ -22,6 +22,18 @@ class ProxyLinear(nn.Module):
         return 'num_proxy={}, in_features={}'.format(self.num_proxy, self.in_features)
 
 
+class AvgMaxPool(nn.Module):
+    def __init__(self):
+        super(AvgMaxPool, self).__init__()
+
+    def forward(self, x):
+        b, c, h, w = x.size()
+        x = x.view(b, c, -1)
+        score = F.softmax(x, dim=-1)
+        out = torch.sum(score * x, dim=-1)
+        return out
+
+
 class Model(nn.Module):
     def __init__(self, backbone_type, feature_dim, num_classes):
         super().__init__()
@@ -31,10 +43,10 @@ class Model(nn.Module):
         backbone, middle_dim = backbones[backbone_type]
         backbone = backbone(pretrained='imagenet' if backbone_type == 'inception' else True)
         if backbone_type == 'inception':
-            backbone.global_pool = nn.AdaptiveMaxPool2d(1)
+            backbone.global_pool = AvgMaxPool()
             backbone.last_linear = nn.Identity()
         else:
-            backbone.avgpool = nn.AdaptiveMaxPool2d(1)
+            backbone.avgpool = AvgMaxPool()
             backbone.fc = nn.Identity()
         self.backbone = backbone
 
