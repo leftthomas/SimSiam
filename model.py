@@ -25,12 +25,11 @@ class ProxyLinear(nn.Module):
 class AvgMaxPool(nn.Module):
     def __init__(self):
         super(AvgMaxPool, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
 
     def forward(self, x):
-        b, c, h, w = x.size()
-        x = x.view(b, c, -1)
-        score = F.softmax(x, dim=-1)
-        out = torch.sum(score * x, dim=-1)
+        out = self.avg_pool(x) + self.max_pool(x)
         return out
 
 
