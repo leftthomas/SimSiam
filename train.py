@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model import Model
-from utils import recall, ImageReader, set_bn_eval, ProxyAnchorLoss
+from utils import recall, ImageReader, set_bn_eval, SmoothProxyAPLoss
 
 # for reproducibility
 np.random.seed(1)
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     optimizer = AdamW([{'params': model.backbone.parameters()}, {'params': model.refactor.parameters()},
                        {'params': model.fc.parameters(), 'lr': 1e-2}], lr=1e-4, weight_decay=1e-4)
     lr_scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
-    loss_criterion = ProxyAnchorLoss()
+    loss_criterion = SmoothProxyAPLoss()
 
     data_base = {'test_images': test_data_set.images, 'test_labels': test_data_set.labels}
     best_recall = 0.0

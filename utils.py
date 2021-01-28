@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import torch.nn.functional as F
 from PIL import Image
 from torch import nn
 from torch.utils.data import Dataset
@@ -90,21 +89,28 @@ def recall(feature_vectors, feature_labels, rank):
     return acc_list
 
 
-class ProxyAnchorLoss(nn.Module):
-    def __init__(self, scale=32, margin=0.1):
-        super(ProxyAnchorLoss, self).__init__()
+class SmoothProxyAPLoss(nn.Module):
+    def __init__(self, scale=100):
+        super(SmoothProxyAPLoss, self).__init__()
         self.scale = scale
-        self.margin = margin
 
     def forward(self, output, label):
-        pos_label = F.one_hot(label, num_classes=output.size(-1))
-        neg_label = 1 - pos_label
-        pos_num = torch.sum(torch.ne(pos_label.sum(dim=0), 0))
-        pos_output = torch.exp(-self.scale * (output - self.margin))
-        neg_output = torch.exp(self.scale * (output + self.margin))
-        pos_output = (torch.where(torch.eq(pos_label, 1), pos_output, torch.zeros_like(pos_output))).sum(dim=0)
-        neg_output = (torch.where(torch.eq(neg_label, 1), neg_output, torch.zeros_like(neg_output))).sum(dim=0)
-        pos_loss = torch.sum(torch.log(pos_output + 1)) / pos_num
-        neg_loss = torch.sum(torch.log(neg_output + 1)) / output.size(-1)
-        loss = pos_loss + neg_loss
+        loss = 0.0
+        for i in range(output.size(0)):
+            target = label[i]
+            sim = output[:, target]
+            diff = sim - output[i, target]
+            exponent = -diff * self.scale
+            # clamp exponent for stability
+            exponent = torch.clamp(exponent, min=-50, max=50)
+            rank = 1.0 / (torch.exp(exponent) + 1.0)
+            pos_mask = torch.eq(label, target)
+            neg_mask = ~pos_mask
+            # exclude itself
+            pos_mask[i] = False
+            pos_rank = torch.sum(rank[pos_mask])
+            neg_rank = torch.sum(rank[neg_mask])
+            ap = (1.0 + pos_rank) / (1.0 + pos_rank + neg_rank)
+            loss = loss + (1.0 - ap)
+        loss = loss / output.size(0)
         return loss
