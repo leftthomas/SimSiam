@@ -95,11 +95,12 @@ class SmoothProxyAPLoss(nn.Module):
         self.scale = scale
 
     def forward(self, output, label):
-        loss = 0.0
+        aps = torch.zeros(output.size(-1), device=output.device)
+        num = torch.bincount(label, minlength=output.size(-1))
         for i in range(output.size(0)):
             target = label[i]
             sim = output[:, target]
-            diff = sim - output[i, target]
+            diff = sim - sim[i]
             exponent = -diff * self.scale
             # clamp exponent for stability
             exponent = torch.clamp(exponent, min=-50, max=50)
@@ -110,7 +111,7 @@ class SmoothProxyAPLoss(nn.Module):
             pos_mask[i] = False
             pos_rank = torch.sum(rank[pos_mask])
             neg_rank = torch.sum(rank[neg_mask])
-            ap = (1.0 + pos_rank) / (1.0 + pos_rank + neg_rank)
-            loss = loss + (1.0 - ap)
-        loss = loss / output.size(0)
+            ap = (1.0 + pos_rank) / (1.0 + pos_rank + neg_rank) / num[target]
+            aps[target] = aps[target] + ap
+        loss = torch.where(torch.ne(num, 0), (1.0 - aps), aps).sum() / torch.ne(num, 0).sum()
         return loss
