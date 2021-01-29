@@ -43,7 +43,7 @@ class ImageReader(Dataset):
         if data_type == 'train':
             self.transform = transforms.Compose([
                 RGBToBGR() if backbone_type == 'inception' else Identity(),
-                transforms.RandomResizedCrop(224),
+                transforms.RandomResizedCrop(227 if backbone_type == 'googlenet' else 224),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 ScaleIntensities([0, 1], [0, 255]) if backbone_type == 'inception' else Identity(),
@@ -51,7 +51,7 @@ class ImageReader(Dataset):
         else:
             self.transform = transforms.Compose([
                 RGBToBGR() if backbone_type == 'inception' else Identity(),
-                transforms.Resize(256), transforms.CenterCrop(224),
+                transforms.Resize(256), transforms.CenterCrop(227 if backbone_type == 'googlenet' else 224),
                 transforms.ToTensor(),
                 ScaleIntensities([0, 1], [0, 255]) if backbone_type == 'inception' else Identity(),
                 normalize])

@@ -16,14 +16,15 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     query_img_name, data_base_name, retrieval_num = opt.query_img_name, opt.data_base, opt.retrieval_num
-    data_name = data_base_name.split('_')[0]
+    data_name, backbone = data_base_name.split('_')[:2]
+    image_size = 227 if backbone == 'googlenet' else 224
 
     data_base = torch.load('results/{}'.format(data_base_name))
 
     if query_img_name not in data_base['test_images']:
         raise FileNotFoundError('{} not found'.format(query_img_name))
     query_index = data_base['test_images'].index(query_img_name)
-    query_image = Image.open(query_img_name).convert('RGB').resize((224, 224), resample=Image.BILINEAR)
+    query_image = Image.open(query_img_name).convert('RGB').resize((image_size, image_size), resample=Image.BILINEAR)
     query_label = torch.tensor(data_base['test_labels'][query_index])
     query_feature = data_base['test_features'][query_index]
 
@@ -42,13 +43,13 @@ if __name__ == '__main__':
     query_image.save('{}/query_img.jpg'.format(result_path))
     for num, index in enumerate(idx):
         retrieval_image = Image.open(gallery_images[index.item()]).convert('RGB') \
-            .resize((224, 224), resample=Image.BILINEAR)
+            .resize((image_size, image_size), resample=Image.BILINEAR)
         draw = ImageDraw.Draw(retrieval_image)
         retrieval_label = gallery_labels[index.item()]
         retrieval_status = torch.equal(retrieval_label, query_label)
         retrieval_sim = sim_matrix[index.item()].item()
         if retrieval_status:
-            draw.rectangle((0, 0, 223, 223), outline='green', width=8)
+            draw.rectangle((0, 0, image_size - 1, image_size - 1), outline='green', width=8)
         else:
-            draw.rectangle((0, 0, 223, 223), outline='red', width=8)
+            draw.rectangle((0, 0, image_size - 1, image_size - 1), outline='red', width=8)
         retrieval_image.save('{}/retrieval_img_{}_{}.jpg'.format(result_path, num + 1, '%.4f' % retrieval_sim))
