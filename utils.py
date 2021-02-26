@@ -7,9 +7,8 @@ from PIL import Image
 from torch.utils.data.dataset import Dataset
 from torchvision import transforms
 
-normalizer = {'tokyo': [(0.335, 0.332, 0.320), (0.241, 0.237, 0.243)],
-              'cityscapes': [(0.401, 0.437, 0.401), (0.186, 0.187, 0.187)],
-              'synthia': [(0.244, 0.221, 0.177), (0.193, 0.174, 0.143)]}
+normalizer = {'rgb': [(0.401, 0.437, 0.401), (0.186, 0.187, 0.187)],
+              'modal': [(0.244, 0.221, 0.177), (0.193, 0.174, 0.143)]}
 
 
 def get_transform(data_name, split='train'):
@@ -32,31 +31,24 @@ class DomainDataset(Dataset):
     def __init__(self, data_root, data_name, split='train'):
         super(DomainDataset, self).__init__()
 
-        original_path = os.path.join(data_root, data_name, 'original', '*', split, '*.png')
-        self.original_images = glob.glob(original_path)
-        self.original_images.sort()
-
-        generated_path = os.path.join(data_root, data_name, 'generated', '*', split, '*.png')
-        self.generated_images = glob.glob(generated_path)
-        self.generated_images.sort()
+        self.data_name = data_name
+        image_path = os.path.join(data_root, data_name, split, '*', '*', '*.png')
+        self.images = glob.glob(image_path)
+        self.images.sort()
         self.transform = get_transform(data_name, split)
 
     def __getitem__(self, index):
-        original_img_name = self.original_images[index]
-        original_img = Image.open(original_img_name)
-        original_img_1 = self.transform(original_img)
-        original_img_2 = self.transform(original_img)
-        generated_img_name = self.generated_images[index]
-        generated_img = Image.open(generated_img_name)
-        generated_img_1 = self.transform(generated_img)
-        generated_img_2 = self.transform(generated_img)
-        return original_img_1, original_img_2, generated_img_1, generated_img_2, index
+        img_name = self.images[index]
+        img = Image.open(img_name)
+        img_1 = self.transform(img)
+        img_2 = self.transform(img)
+        return img_1, img_2, index
 
     def __len__(self):
-        return len(self.original_images)
+        return len(self.images)
 
 
-def recall(vectors, ranks):
+def recall(vectors, ranks, data_name):
     labels = torch.arange(len(vectors) // 2, device=vectors.device)
     labels = torch.cat((labels, labels), dim=0)
     a_vectors = vectors[:len(vectors) // 2]
