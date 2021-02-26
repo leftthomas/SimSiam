@@ -7,7 +7,7 @@ from PIL import Image
 from torch.utils.data.dataset import Dataset
 from torchvision import transforms
 
-normalizer = {'rgb': [(0.401, 0.437, 0.401), (0.186, 0.187, 0.187)],
+normalizer = {'rgb': [(0.410, 0.445, 0.407), (0.150, 0.153, 0.150)],
               'modal': [(0.244, 0.221, 0.177), (0.193, 0.174, 0.143)]}
 
 
