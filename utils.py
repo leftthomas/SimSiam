@@ -1,117 +1,85 @@
+import glob
+import os
+
 import numpy as np
 import torch
 from PIL import Image
-from torch import nn
-from torch.utils.data import Dataset
+from torch.utils.data.dataset import Dataset
 from torchvision import transforms
 
-
-class Identity(object):
-    def __call__(self, im):
-        return im
-
-
-class RGBToBGR(object):
-    def __call__(self, im):
-        assert im.mode == 'RGB'
-        r, g, b = [im.getchannel(i) for i in range(3)]
-        im = Image.merge('RGB', [b, g, r])
-        return im
+normalizer = {'tokyo': [(0.335, 0.332, 0.320), (0.241, 0.237, 0.243)],
+              'cityscapes': [(0.401, 0.437, 0.401), (0.186, 0.187, 0.187)],
+              'synthia': [(0.244, 0.221, 0.177), (0.193, 0.174, 0.143)]}
 
 
-class ScaleIntensities(object):
-    def __init__(self, in_range, out_range):
-        """ Scales intensities. For example [-1, 1] -> [0, 255]."""
-        self.in_range = in_range
-        self.out_range = out_range
+def get_transform(data_name, split='train'):
+    if split == 'train':
+        return transforms.Compose([
+            transforms.RandomResizedCrop(256, scale=(0.2, 1.0)),
+            transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize(normalizer[data_name][0], normalizer[data_name][1])])
+    else:
+        return transforms.Compose([
+            transforms.Resize(256),
+            transforms.ToTensor(),
+            transforms.Normalize(normalizer[data_name][0], normalizer[data_name][1])])
 
-    def __call__(self, tensor):
-        tensor = (tensor - self.in_range[0]) / (self.in_range[1] - self.in_range[0]) * (
-                self.out_range[1] - self.out_range[0]) + self.out_range[0]
-        return tensor
 
+class DomainDataset(Dataset):
+    def __init__(self, data_root, data_name, split='train'):
+        super(DomainDataset, self).__init__()
 
-class ImageReader(Dataset):
+        original_path = os.path.join(data_root, data_name, 'original', '*', split, '*.png')
+        self.original_images = glob.glob(original_path)
+        self.original_images.sort()
 
-    def __init__(self, data_path, data_name, data_type, backbone_type):
-        data_dict = torch.load('{}/{}/uncropped_data_dicts.pth'.format(data_path, data_name))[data_type]
-        self.class_to_idx = dict(zip(sorted(data_dict), range(len(data_dict))))
-        if backbone_type == 'inception':
-            normalize = transforms.Normalize([104, 117, 128], [1, 1, 1])
-        else:
-            normalize = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        if data_type == 'train':
-            self.transform = transforms.Compose([
-                RGBToBGR() if backbone_type == 'inception' else Identity(),
-                transforms.RandomResizedCrop(227 if backbone_type == 'googlenet' else 224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                ScaleIntensities([0, 1], [0, 255]) if backbone_type == 'inception' else Identity(),
-                normalize])
-        else:
-            self.transform = transforms.Compose([
-                RGBToBGR() if backbone_type == 'inception' else Identity(),
-                transforms.Resize(256), transforms.CenterCrop(227 if backbone_type == 'googlenet' else 224),
-                transforms.ToTensor(),
-                ScaleIntensities([0, 1], [0, 255]) if backbone_type == 'inception' else Identity(),
-                normalize])
-        self.images, self.labels = [], []
-        for label, image_list in data_dict.items():
-            self.images += image_list
-            self.labels += [self.class_to_idx[label]] * len(image_list)
+        generated_path = os.path.join(data_root, data_name, 'generated', '*', split, '*.png')
+        self.generated_images = glob.glob(generated_path)
+        self.generated_images.sort()
+        self.transform = get_transform(data_name, split)
 
     def __getitem__(self, index):
-        path, target = self.images[index], self.labels[index]
-        img = Image.open(path).convert('RGB')
-        img = self.transform(img)
-        return img, target
+        original_img_name = self.original_images[index]
+        original_img = Image.open(original_img_name)
+        original_img_1 = self.transform(original_img)
+        original_img_2 = self.transform(original_img)
+        generated_img_name = self.generated_images[index]
+        generated_img = Image.open(generated_img_name)
+        generated_img_1 = self.transform(generated_img)
+        generated_img_2 = self.transform(generated_img)
+        return original_img_1, original_img_2, generated_img_1, generated_img_2, index
 
     def __len__(self):
-        return len(self.images)
+        return len(self.original_images)
 
 
-def set_bn_eval(m):
-    classname = m.__class__.__name__
-    if classname.find('BatchNorm2d') != -1:
-        m.eval()
+def recall(vectors, ranks):
+    labels = torch.arange(len(vectors) // 2, device=vectors.device)
+    labels = torch.cat((labels, labels), dim=0)
+    a_vectors = vectors[:len(vectors) // 2]
+    b_vectors = vectors[len(vectors) // 2:]
+    a_labels = labels[:len(vectors) // 2]
+    b_labels = labels[len(vectors) // 2:]
+    # domain a ---> domain b
+    sim_a = a_vectors.mm(b_vectors.t())
+    idx_a = sim_a.topk(k=ranks[-1], dim=-1, largest=True)[1]
+    # domain b ---> domain a
+    sim_b = b_vectors.mm(a_vectors.t())
+    idx_b = sim_b.topk(k=ranks[-1], dim=-1, largest=True)[1]
+    # cross domain
+    sim = vectors.mm(vectors.t())
+    sim.fill_diagonal_(-np.inf)
+    idx = sim.topk(k=ranks[-1], dim=-1, largest=True)[1]
 
-
-def recall(feature_vectors, feature_labels, rank):
-    feature_labels = torch.tensor(feature_labels, device=feature_vectors.device)
-    sim_matrix = feature_vectors.mm(feature_vectors.t())
-    sim_matrix.fill_diagonal_(-np.inf)
-
-    idx = sim_matrix.topk(k=rank[-1], dim=-1, largest=True)[1]
-    acc_list = []
-    for r in rank:
-        correct = (torch.eq(feature_labels[idx[:, 0:r]], feature_labels.unsqueeze(dim=-1))).any(dim=-1)
-        acc_list.append((torch.sum(correct) / correct.size(0)).item())
-    return acc_list
-
-
-class SmoothProxyAPLoss(nn.Module):
-    def __init__(self, scale=100):
-        super(SmoothProxyAPLoss, self).__init__()
-        self.scale = scale
-
-    def forward(self, output, label):
-        aps = torch.zeros(output.size(-1), device=output.device)
-        num = torch.bincount(label, minlength=output.size(-1))
-        for i in range(output.size(0)):
-            target = label[i]
-            sim = output[:, target]
-            diff = sim - sim[i]
-            exponent = -diff * self.scale
-            # clamp exponent for stability
-            exponent = torch.clamp(exponent, min=-50, max=50)
-            rank = 1.0 / (torch.exp(exponent) + 1.0)
-            pos_mask = torch.eq(label, target)
-            neg_mask = ~pos_mask
-            # exclude itself
-            pos_mask[i] = False
-            pos_rank = torch.sum(rank[pos_mask])
-            neg_rank = torch.sum(rank[neg_mask])
-            ap = (1.0 + pos_rank) / (1.0 + pos_rank + neg_rank) / num[target]
-            aps[target] = aps[target] + ap
-        loss = torch.where(torch.ne(num, 0), (1.0 - aps), aps).sum() / torch.ne(num, 0).sum()
-        return loss
+    acc_a, acc_b, acc = [], [], []
+    for r in ranks:
+        correct_a = (torch.eq(b_labels[idx_a[:, 0:r]], a_labels.unsqueeze(dim=-1))).any(dim=-1)
+        acc_a.append((torch.sum(correct_a) / correct_a.size(0)).item())
+        correct_b = (torch.eq(a_labels[idx_b[:, 0:r]], b_labels.unsqueeze(dim=-1))).any(dim=-1)
+        acc_b.append((torch.sum(correct_b) / correct_b.size(0)).item())
+        correct = (torch.eq(labels[idx[:, 0:r]], labels.unsqueeze(dim=-1))).any(dim=-1)
+        acc.append((torch.sum(correct) / correct.size(0)).item())
+    return acc_a, acc_b, acc
