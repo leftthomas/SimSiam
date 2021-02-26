@@ -10,7 +10,7 @@ from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
-from model import Model, SimCLRLoss, MoCoLoss, NPIDLoss, DaCoLoss
+from model import Backbone, SimCLRLoss, MoCoLoss, NPIDLoss, DaCoLoss
 from utils import DomainDataset, recall
 
 # for reproducibility
@@ -126,10 +126,10 @@ if __name__ == '__main__':
     epochs = iters // (len(train_data) // batch_size)
 
     # model setup
-    model_q = Model(proj_dim).cuda(gpu_ids[0])
+    model_q = Backbone(proj_dim).cuda(gpu_ids[0])
     if method_name == 'moco':
         loss_criterion = MoCoLoss(negs, proj_dim, temperature).cuda(gpu_ids[0])
-        model_k = Model(proj_dim).cuda(gpu_ids[0])
+        model_k = Backbone(proj_dim).cuda(gpu_ids[0])
         # initialize model_k as a shadow model of model_q
         for param_q, param_k in zip(model_q.parameters(), model_k.parameters()):
             param_k.data.copy_(param_q.data)
