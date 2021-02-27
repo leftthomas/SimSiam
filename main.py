@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch.backends import cudnn
 from torch.nn import DataParallel
 from torch.optim import Adam
@@ -22,42 +23,63 @@ cudnn.benchmark = False
 
 
 # train for one epoch
-def train(net_q, data_loader, train_optimizer):
-    net_q.train()
+def train(net, data_loader, train_optimizer):
+    net.train()
+    if method_name == 'daco':
+        G_content.train()
+        G_style.train()
+        D_content.train()
+        D_style.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader, dynamic_ncols=True)
-    for ori_img_1, ori_img_2, gen_img_1, gen_img_2, pos_index in train_bar:
+    for ori_img_1, ori_img_2, pos_index in train_bar:
         ori_img_1, ori_img_2 = ori_img_1.cuda(gpu_ids[0]), ori_img_2.cuda(gpu_ids[0])
-        _, ori_proj_1 = net_q(ori_img_1)
 
+        if method_name == 'daco':
+            # synthetic domain images
+            content = G_content(ori_img_1)
+            # shuffle style
+            idx = torch.randperm(batch_size, device=ori_img_1.device)
+            style = G_style(ori_img_1[idx])
+            sytic = content + style
+
+        if method_name != 'daco':
+            _, ori_proj_1 = net(ori_img_1)
         if method_name == 'npid':
             loss, pos_samples = loss_criterion(ori_proj_1, pos_index)
         elif method_name == 'simclr':
-            _, ori_proj_2 = net_q(ori_img_2)
+            _, ori_proj_2 = net(ori_img_2)
             loss = loss_criterion(ori_proj_1, ori_proj_2)
         elif method_name == 'moco':
             # shuffle BN
             idx = torch.randperm(batch_size, device=ori_img_2.device)
-            _, ori_proj_2 = backbone_k(ori_img_2[idx])
+            _, ori_proj_2 = shadow(ori_img_2[idx])
             ori_proj_2 = ori_proj_2[torch.argsort(idx)]
             loss = loss_criterion(ori_proj_1, ori_proj_2)
         else:
             # DaCo
-            _, ori_proj_2 = net_q(ori_img_2)
-            gen_img_1, gen_img_2 = gen_img_1.cuda(gpu_ids[0]), gen_img_2.cuda(gpu_ids[0])
-            _, gen_proj_1 = net_q(gen_img_1)
-            _, gen_proj_2 = net_q(gen_img_2)
-            loss = loss_criterion(ori_proj_1, ori_proj_2, gen_proj_1, gen_proj_2)
+            _, ori_proj_1 = net(ori_proj_1)
+            _, ori_proj_2 = net(sytic)
+            sim_loss = loss_criterion(ori_proj_1, ori_proj_2)
+            content_loss = F.mse_loss(D_content(content), D_content(sytic))
+            style_loss = F.mse_loss(D_style(style), D_style(sytic))
+            loss = 10 * sim_loss + content_loss + style_loss
 
+        if method_name == 'daco':
+            optimizer_G.zero_grad()
+            optimizer_D.zero_grad()
         train_optimizer.zero_grad()
         loss.backward()
         train_optimizer.step()
+        if method_name == 'daco':
+            optimizer_G.step()
+            optimizer_D.step()
 
         if method_name == 'npid':
             loss_criterion.enqueue(ori_proj_1, pos_index, pos_samples)
         if method_name == 'moco':
             loss_criterion.enqueue(ori_proj_2)
             # momentum update
-            for parameter_q, parameter_k in zip(net_q.parameters(), backbone_k.parameters()):
+            for parameter_q, parameter_k in zip(net.parameters(), shadow.parameters()):
                 parameter_k.data.copy_(parameter_k.data * momentum + parameter_q.data * (1.0 - momentum))
 
         total_num += batch_size
@@ -136,7 +158,7 @@ if __name__ == '__main__':
     epochs = iters // (len(train_data) // batch_size)
 
     # model setup
-    backbone_q = Backbone(proj_dim).cuda(gpu_ids[0])
+    backbone = Backbone(proj_dim).cuda(gpu_ids[0])
     if method_name == 'daco':
         G_content = Generator(3, 3)
         G_style = Generator(3, 3)
@@ -144,21 +166,21 @@ if __name__ == '__main__':
         D_style = Discriminator(3)
     if method_name == 'moco':
         loss_criterion = MoCoLoss(negs, proj_dim, temperature).cuda(gpu_ids[0])
-        backbone_k = Backbone(proj_dim).cuda(gpu_ids[0])
-        # initialize model_k as a shadow model of model_q
-        for param_q, param_k in zip(backbone_q.parameters(), backbone_k.parameters()):
+        shadow = Backbone(proj_dim).cuda(gpu_ids[0])
+        # initialize shadow as a shadow model of backbone
+        for param_q, param_k in zip(backbone.parameters(), shadow.parameters()):
             param_k.data.copy_(param_q.data)
             # not update by gradient
             param_k.requires_grad = False
     # optimizer config
-    optimizer_backbone = Adam(backbone_q.parameters(), lr=1e-3, weight_decay=1e-6)
+    optimizer_backbone = Adam(backbone.parameters(), lr=1e-3, weight_decay=1e-6)
     if method_name == 'daco':
         optimizer_G = Adam(itertools.chain(G_content.parameters(), G_style.parameters()), lr=1e-3, betas=(0.5, 0.999))
         optimizer_D = Adam(itertools.chain(D_content.parameters(), D_style.parameters()), lr=1e-4, betas=(0.5, 0.999))
     if len(gpu_ids) > 1:
-        backbone_q = DataParallel(backbone_q, device_ids=gpu_ids)
+        backbone = DataParallel(backbone, device_ids=gpu_ids)
         if method_name == 'moco':
-            backbone_k = DataParallel(backbone_k, device_ids=gpu_ids)
+            shadow = DataParallel(shadow, device_ids=gpu_ids)
         if method_name == 'daco':
             G_content = DataParallel(G_content, device_ids=gpu_ids)
             G_style = DataParallel(G_style, device_ids=gpu_ids)
@@ -187,9 +209,9 @@ if __name__ == '__main__':
         os.makedirs(save_root)
     best_precise = 0.0
     for epoch in range(1, epochs + 1):
-        train_loss = train(backbone_q, train_loader, optimizer_backbone)
+        train_loss = train(backbone, train_loader, optimizer_backbone)
         results['train_loss'].append(train_loss)
-        val_precise, features = val(backbone_q, val_loader)
+        val_precise, features = val(backbone, val_loader)
         results['val_precise'].append(val_precise * 100)
         # save statistics
         data_frame = pd.DataFrame(data=results, index=range(1, epoch + 1))
@@ -198,7 +220,7 @@ if __name__ == '__main__':
         if val_precise > best_precise:
             best_precise = val_precise
             if len(gpu_ids) > 1:
-                torch.save(backbone_q.module.state_dict(), '{}/{}_model.pth'.format(save_root, save_name_pre))
+                torch.save(backbone.module.state_dict(), '{}/{}_model.pth'.format(save_root, save_name_pre))
             else:
-                torch.save(backbone_q.state_dict(), '{}/{}_model.pth'.format(save_root, save_name_pre))
+                torch.save(backbone.state_dict(), '{}/{}_model.pth'.format(save_root, save_name_pre))
             torch.save(features, '{}/{}_vectors.pth'.format(save_root, save_name_pre))
