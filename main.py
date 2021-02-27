@@ -160,10 +160,10 @@ if __name__ == '__main__':
     # model setup
     backbone = Backbone(proj_dim).cuda(gpu_ids[0])
     if method_name == 'daco':
-        G_content = Generator(3, 3)
-        G_style = Generator(3, 3)
-        D_content = Discriminator(3)
-        D_style = Discriminator(3)
+        G_content = Generator(3, 3).cuda(gpu_ids[0])
+        G_style = Generator(3, 3).cuda(gpu_ids[0])
+        D_content = Discriminator(3).cuda(gpu_ids[0])
+        D_style = Discriminator(3).cuda(gpu_ids[0])
     if method_name == 'moco':
         loss_criterion = MoCoLoss(negs, proj_dim, temperature).cuda(gpu_ids[0])
         shadow = Backbone(proj_dim).cuda(gpu_ids[0])
