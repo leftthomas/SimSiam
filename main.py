@@ -57,7 +57,7 @@ def train(net, data_loader, train_optimizer):
             loss = loss_criterion(ori_proj_1, ori_proj_2)
         else:
             # DaCo
-            _, ori_proj_1 = net(ori_proj_1)
+            _, ori_proj_1 = net(ori_img_1)
             _, ori_proj_2 = net(sytic)
             sim_loss = loss_criterion(ori_proj_1, ori_proj_2)
             content_loss = F.mse_loss(D_content(content), D_content(sytic))
