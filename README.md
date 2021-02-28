@@ -52,7 +52,7 @@ python main.py --data_name modal --method_name simclr --gpu_ids 0 1
 optional arguments:
 --data_root                   Datasets root path [default value is 'data']
 --data_name                   Dataset name [default value is 'rgb'](choices=['rgb', 'modal'])
---method_name                 Method name [default value is 'daco'](choices=['daco', 'simclr', 'moco', 'npid'])
+--method_name                 Method name [default value is 'umda'](choices=['umda', 'simclr', 'moco', 'npid'])
 --proj_dim                    Projected feature dim for computing loss [default value is 128]
 --temperature                 Temperature used in softmax [default value is 0.1]
 --batch_size                  Number of images in each mini-batch [default value is 16]
@@ -79,8 +79,8 @@ python main.py --data_name modal --method_name npid --batch_size 64 --gpu_ids 2 
 ## Benchmarks
 
 The models are trained on one NVIDIA GTX TITAN (12G) GPU. `Adam` is used to optimize the model, `lr` is `1e-3`
-and `weight decay` is `1e-6`. `batch size` is `16` for `daco`, `32` for `simclr` and `moco`, `64` for `npid`.
-`momentum` is `0.999` for `moco`, `lr` is `1e-3` and `betas` is `(0.5, 0.999)` for Generators `lr` is `1e-4`
+and `weight decay` is `1e-6`. `batch size` is `16` for `umda`, `32` for `simclr` and `moco`, `64` for `npid`.
+`momentum` is `0.999` for `moco`, `lr` is `1e-3` and `betas` is `(0.5, 0.999)` for Generators, `lr` is `1e-4`
 and `betas` is `(0.5, 0.999)` for Discriminators, other hyper-parameters are the default values.
 
 ### RGB

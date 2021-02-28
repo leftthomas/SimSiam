@@ -140,3 +140,4 @@ def recall(vectors, ranks, data_name):
         acc['precise'] = (acc['cd@{}'.format(ranks[0])] + acc['dc@{}'.format(ranks[0])] + acc[
             'cross@{}'.format(ranks[0])]) / 3
     return acc
+

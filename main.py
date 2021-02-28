@@ -25,7 +25,7 @@ cudnn.benchmark = False
 # train for one epoch
 def train(net, data_loader, train_optimizer):
     net.train()
-    if method_name == 'daco':
+    if method_name == 'umda':
         G_content.train()
         G_style.train()
         D_content.train()
@@ -34,7 +34,7 @@ def train(net, data_loader, train_optimizer):
     for ori_img_1, ori_img_2, pos_index in train_bar:
         ori_img_1, ori_img_2 = ori_img_1.cuda(gpu_ids[0]), ori_img_2.cuda(gpu_ids[0])
 
-        if method_name == 'daco':
+        if method_name == 'umda':
             # synthetic domain images
             content = G_content(ori_img_1)
             # shuffle style
@@ -42,8 +42,8 @@ def train(net, data_loader, train_optimizer):
             style = G_style(ori_img_1[idx])
             sytic = content + style
 
-        if method_name != 'daco':
-            _, ori_proj_1 = net(ori_img_1)
+        _, ori_proj_1 = net(ori_img_1)
+
         if method_name == 'npid':
             loss, pos_samples = loss_criterion(ori_proj_1, pos_index)
         elif method_name == 'simclr':
@@ -56,21 +56,20 @@ def train(net, data_loader, train_optimizer):
             ori_proj_2 = ori_proj_2[torch.argsort(idx)]
             loss = loss_criterion(ori_proj_1, ori_proj_2)
         else:
-            # DaCo
-            _, ori_proj_1 = net(ori_img_1)
+            # UMDA
             _, ori_proj_2 = net(sytic)
             sim_loss = loss_criterion(ori_proj_1, ori_proj_2)
             content_loss = F.mse_loss(D_content(content), D_content(sytic))
             style_loss = F.mse_loss(D_style(style), D_style(sytic))
             loss = 10 * sim_loss + content_loss + style_loss
 
-        if method_name == 'daco':
+        if method_name == 'umda':
             optimizer_G.zero_grad()
             optimizer_D.zero_grad()
         train_optimizer.zero_grad()
         loss.backward()
         train_optimizer.step()
-        if method_name == 'daco':
+        if method_name == 'umda':
             optimizer_G.step()
             optimizer_D.step()
 
@@ -128,7 +127,7 @@ if __name__ == '__main__':
     # common args
     parser.add_argument('--data_root', default='data', type=str, help='Datasets root path')
     parser.add_argument('--data_name', default='rgb', type=str, choices=['rgb', 'modal'], help='Dataset name')
-    parser.add_argument('--method_name', default='daco', type=str, choices=['daco', 'simclr', 'moco', 'npid'],
+    parser.add_argument('--method_name', default='umda', type=str, choices=['umda', 'simclr', 'moco', 'npid'],
                         help='Method name')
     parser.add_argument('--proj_dim', default=128, type=int, help='Projected feature dim for computing loss')
     parser.add_argument('--temperature', default=0.1, type=float, help='Temperature used in softmax')
@@ -159,7 +158,7 @@ if __name__ == '__main__':
 
     # model setup
     backbone = Backbone(proj_dim).cuda(gpu_ids[0])
-    if method_name == 'daco':
+    if method_name == 'umda':
         G_content = Generator(3, 3).cuda(gpu_ids[0])
         G_style = Generator(3, 3).cuda(gpu_ids[0])
         D_content = Discriminator(3).cuda(gpu_ids[0])
@@ -174,14 +173,14 @@ if __name__ == '__main__':
             param_k.requires_grad = False
     # optimizer config
     optimizer_backbone = Adam(backbone.parameters(), lr=1e-3, weight_decay=1e-6)
-    if method_name == 'daco':
+    if method_name == 'umda':
         optimizer_G = Adam(itertools.chain(G_content.parameters(), G_style.parameters()), lr=1e-3, betas=(0.5, 0.999))
         optimizer_D = Adam(itertools.chain(D_content.parameters(), D_style.parameters()), lr=1e-4, betas=(0.5, 0.999))
     if len(gpu_ids) > 1:
         backbone = DataParallel(backbone, device_ids=gpu_ids)
         if method_name == 'moco':
             shadow = DataParallel(shadow, device_ids=gpu_ids)
-        if method_name == 'daco':
+        if method_name == 'umda':
             G_content = DataParallel(G_content, device_ids=gpu_ids)
             G_style = DataParallel(G_style, device_ids=gpu_ids)
             D_content = DataParallel(D_content, device_ids=gpu_ids)
@@ -189,7 +188,7 @@ if __name__ == '__main__':
 
     if method_name == 'npid':
         loss_criterion = NPIDLoss(len(train_data), negs, proj_dim, momentum, temperature)
-    if method_name in ['simclr', 'daco']:
+    if method_name in ['simclr', 'umda']:
         loss_criterion = SimCLRLoss(temperature)
 
     # training loop
