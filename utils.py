@@ -1,3 +1,7 @@
+import glob
+import os
+
+import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data.dataset import Dataset
@@ -53,7 +57,7 @@ def recall(vectors, ranks, data_name):
         rain_vectors = vectors[2 * len(vectors) // 3:]
         clear_labels = labels[:len(vectors) // 3]
         fog_labels = labels[len(vectors) // 3: 2 * len(vectors) // 3]
-        rain_labels = labels[len(vectors) // 3:]
+        rain_labels = labels[2 * len(vectors) // 3:]
 
         # domain clear ---> domain fog
         sim_cf = clear_vectors.mm(fog_vectors.t())
