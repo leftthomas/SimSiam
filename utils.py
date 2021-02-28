@@ -4,7 +4,7 @@ from torch.utils.data.dataset import Dataset
 from torchvision import transforms
 
 normalizer = {'rgb': [(0.410, 0.445, 0.407), (0.150, 0.152, 0.150)],
-              'modal': [(0.244, 0.221, 0.177), (0.193, 0.174, 0.143)]}
+              'modal': [(0.259, 0.278, 0.257), (0.201, 0.204, 0.202)]}
 
 
 def get_transform(data_name, split='train'):
@@ -35,7 +35,7 @@ class DomainDataset(Dataset):
 
     def __getitem__(self, index):
         img_name = self.images[index]
-        img = Image.open(img_name).convert('RGB')
+        img = Image.open(img_name)
         img_1 = self.transform(img)
         img_2 = self.transform(img)
         return img_1, img_2, index
@@ -136,29 +136,3 @@ def recall(vectors, ranks, data_name):
         acc['precise'] = (acc['cd@{}'.format(ranks[0])] + acc['dc@{}'.format(ranks[0])] + acc[
             'cross@{}'.format(ranks[0])]) / 3
     return acc
-
-
-if __name__ == '__main__':
-    import glob
-    import os
-
-    import cv2
-    import numpy as np
-    from tqdm import tqdm
-
-    search_path = os.path.join('data/modal/train/*/*/*.png')
-    files = glob.glob(search_path)
-    files.sort()
-    # BGR
-    means = [0.0, 0.0, 0.0]
-    stds = [0.0, 0.0, 0.0]
-
-    for image_path in tqdm(files):
-        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
-        image = np.asarray(image, np.float32) / 255.0
-        for i in range(3):
-            means[i] += image[:, :, i].mean()
-            stds[i] += image[:, :, i].std()
-    means = np.asarray(means) / len(files)
-    stds = np.asarray(stds) / len(files)
-    print(means, stds)
