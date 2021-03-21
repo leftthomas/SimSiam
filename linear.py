@@ -1,5 +1,6 @@
 import argparse
 import math
+import os
 
 import pandas as pd
 import torch
@@ -25,7 +26,6 @@ class Net(nn.Module):
         # classifier
         self.fc = nn.Linear(feature_dim, num_class, bias=True)
         self.load_state_dict(torch.load(pretrained_path, map_location='cpu'), strict=False)
-        x
         for param in self.f.parameters():
             param.requires_grad = False
 
@@ -92,6 +92,8 @@ if __name__ == '__main__':
                'test_loss': [], 'test_acc@1': [], 'test_acc@5': []}
 
     best_acc = 0.0
+    if not os.path.exists('results'):
+        os.mkdir('results')
     for epoch in range(1, epochs + 1):
         train_loss, train_acc_1, train_acc_5 = train_val(model, train_loader, optimizer)
         results['train_loss'].append(train_loss)
