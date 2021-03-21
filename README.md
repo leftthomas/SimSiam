@@ -57,7 +57,7 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 		<!-- TABLE HEADER -->
 		<th>Evaluation Protocol</th>
 		<th>Params (M)</th>
-		<th>FLOPs (G)</th>
+		<th>FLOPs (M)</th>
 		<th>Feature Dim</th>
 		<th>Batch Size</th>
 		<th>Epoch Num</th>
@@ -68,15 +68,15 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 		<!-- TABLE BODY -->
 		<tr>
 			<td align="center">KNN</td>
-			<td align="center">24.62</td>
-			<td align="center">1.31</td>
+			<td align="center">18.52</td>
+			<td align="center">564.00</td>
 			<td align="center">128</td>
 			<td align="center">512</td>
 			<td align="center">500</td>
 			<td align="center">200</td>
 			<td align="center">89.1</td>
 			<td align="center">99.6</td>
-			<td align="center"><a href="https://pan.baidu.com/s/1pRwF6Uw5xnqvs2p2xQK4ZQ">model</a>&nbsp;|&nbsp;gc5k</td>
+			<td align="center"><a href="https://pan.baidu.com/s/1iFdz3RLaatZlEMpSk-Df6g">model</a>&nbsp;|&nbsp;f7yj</td>
 		</tr>
 		<tr>
 			<td align="center">Linear</td>
@@ -88,7 +88,7 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 			<td align="center">-</td>
 			<td align="center"><b>92.0</b></td>
 			<td align="center"><b>99.8</b></td>
-			<td align="center"><a href="https://pan.baidu.com/s/1HQSNe2J-g1ptCiwKhz05cQ">model</a>&nbsp;|&nbsp;f7j2</td>
+			<td align="center"><a href="https://pan.baidu.com/s/1euCl86wEz9_Ucs5o8KAY2w">model</a>&nbsp;|&nbsp;v8mf</td>
 		</tr>
 	</tbody>
 </table>
