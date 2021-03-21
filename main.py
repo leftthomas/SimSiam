@@ -60,7 +60,7 @@ def test(net, memory_data_loader, test_data_loader):
 
             total_num += data.size(0)
             # compute cos similarity between each feature vector and feature bank ---> [B, N]
-            sim_matrix = torch.mm(feature, feature_bank)
+            sim_matrix = torch.mm(F.normalize(feature, dim=-1), feature_bank)
             # [B, K]
             sim_weight, sim_indices = sim_matrix.topk(k=k, dim=-1)
             # [B, K]
