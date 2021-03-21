@@ -70,9 +70,9 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 			<td align="center">KNN</td>
 			<td align="center">18.52</td>
 			<td align="center">564.00</td>
-			<td align="center">128</td>
+			<td align="center">2048</td>
 			<td align="center">512</td>
-			<td align="center">500</td>
+			<td align="center">800</td>
 			<td align="center">200</td>
 			<td align="center">89.1</td>
 			<td align="center">99.6</td>
@@ -83,8 +83,8 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 			<td align="center">23.52</td>
 			<td align="center">1.30</td>
 			<td align="center">-</td>
-			<td align="center">512</td>
-			<td align="center">100</td>
+			<td align="center">256</td>
+			<td align="center">90</td>
 			<td align="center">-</td>
 			<td align="center"><b>92.0</b></td>
 			<td align="center"><b>99.8</b></td>
