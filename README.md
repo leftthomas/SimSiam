@@ -61,7 +61,6 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 		<th>Feature Dim</th>
 		<th>Batch Size</th>
 		<th>Epoch Num</th>
-		<th>τ</th>
 		<th>K</th>
 		<th>Top1 Acc %</th>
 		<th>Top5 Acc %</th>
@@ -74,7 +73,6 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 			<td align="center">128</td>
 			<td align="center">512</td>
 			<td align="center">500</td>
-			<td align="center">0.5</td>
 			<td align="center">200</td>
 			<td align="center">89.1</td>
 			<td align="center">99.6</td>
@@ -87,7 +85,6 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 			<td align="center">-</td>
 			<td align="center">512</td>
 			<td align="center">100</td>
-			<td align="center">-</td>
 			<td align="center">-</td>
 			<td align="center"><b>92.0</b></td>
 			<td align="center"><b>99.8</b></td>

@@ -18,7 +18,7 @@ from utils import CIFAR10Pair, test_transform, train_transform
 # train for one epoch to learn features
 def train(net, data_loader, train_optimizer):
     net.train()
-    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
+    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader, dynamic_ncols=True)
     for pos_1, pos_2, _ in train_bar:
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
         feature_1, proj_1 = net(pos_1)
@@ -45,7 +45,7 @@ def test(net, memory_data_loader, test_data_loader):
     total_top1, total_top5, total_num, feature_bank = 0.0, 0.0, 0, []
     with torch.no_grad():
         # generate feature bank
-        for data, _, _ in tqdm(memory_data_loader, desc='Feature extracting'):
+        for data, _, _ in tqdm(memory_data_loader, desc='Feature extracting', dynamic_ncols=True):
             feature, proj = net(data.cuda(non_blocking=True))
             feature_bank.append(F.normalize(feature, dim=-1))
         # [D, N]
@@ -53,7 +53,7 @@ def test(net, memory_data_loader, test_data_loader):
         # [N]
         feature_labels = torch.tensor(memory_data_loader.dataset.targets, device=feature_bank.device)
         # loop test data to predict the label by weighted knn search
-        test_bar = tqdm(test_data_loader)
+        test_bar = tqdm(test_data_loader, dynamic_ncols=True)
         for data, _, target in test_bar:
             data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
             feature, proj = net(data)
@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
     # model setup and optimizer config
     model = Model(feature_dim).cuda()
-    flops, params = profile(model, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
+    flops, params = profile(model, inputs=(torch.randn(1, 3, 32, 32).cuda(),), verbose=False)
     flops, params = clever_format([flops, params])
     print('# Model Params: {} FLOPs: {}'.format(params, flops))
     optimizer = SGD(model.parameters(), lr=0.03, momentum=0.9, weight_decay=5e-4)

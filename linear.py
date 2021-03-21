@@ -41,7 +41,8 @@ def train_val(net, data_loader, train_optimizer):
     is_train = train_optimizer is not None
     net.train() if is_train else net.eval()
 
-    total_loss, total_correct_1, total_correct_5, total_num, data_bar = 0.0, 0.0, 0.0, 0, tqdm(data_loader)
+    total_loss, total_correct_1, total_correct_5, total_num = 0.0, 0.0, 0.0, 0
+    data_bar = tqdm(data_loader, dynamic_ncols=True)
     with (torch.enable_grad() if is_train else torch.no_grad()):
         for data, target in data_bar:
             data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
@@ -82,7 +83,7 @@ if __name__ == '__main__':
 
     model = Net(num_class=len(train_data.classes), pretrained_path=model_path).cuda()
 
-    flops, params = profile(model, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
+    flops, params = profile(model, inputs=(torch.randn(1, 3, 32, 32).cuda(),), verbose=False)
     flops, params = clever_format([flops, params])
     print('# Model Params: {} FLOPs: {}'.format(params, flops))
     optimizer = SGD(model.fc.parameters(), lr=30.0, momentum=0.9)
