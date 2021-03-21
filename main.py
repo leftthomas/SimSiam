@@ -70,7 +70,7 @@ def test(net, memory_data_loader, test_data_loader):
             # counts for each class
             one_hot_label = torch.zeros(data.size(0) * k, c, device=sim_labels.device)
             # [B*K, C]
-            one_hot_label = one_hot_label.scatter(dim=-1, index=sim_labels.view(-1, 1), value=1.0)
+            one_hot_label = one_hot_label.scatter(dim=-1, index=sim_labels.view(-1, 1), src=1.0)
             # weighted score ---> [B, C]
             pred_scores = torch.sum(one_hot_label.view(data.size(0), -1, c) * sim_weight.unsqueeze(dim=-1), dim=1)
 
