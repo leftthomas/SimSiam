@@ -22,9 +22,9 @@ class Net(nn.Module):
         feature_dim = int(pretrained_path.split('/')[-1].split('_')[0])
 
         # encoder
-        self.f = Model(feature_dim).f
+        self.f = Model(512).f
         # classifier
-        self.fc = nn.Linear(feature_dim, num_class, bias=True)
+        self.fc = nn.Linear(512, num_class, bias=True)
         self.load_state_dict(torch.load(pretrained_path, map_location='cpu'), strict=False)
         for param in self.f.parameters():
             param.requires_grad = False
