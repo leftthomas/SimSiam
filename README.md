@@ -1,6 +1,6 @@
 # SimSiam
 
-A PyTorch implementation of SimCLR based on CVPR 2021
+A PyTorch implementation of SimSiam based on CVPR 2021
 paper [Exploring Simple Siamese Representation Learning](https://arxiv.org/abs/2011.10566).
 
 ![Network Architecture image from the paper](structure.png)
