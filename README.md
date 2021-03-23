@@ -74,20 +74,20 @@ The model is trained on one NVIDIA GeForce TITAN X(12G) GPU.
 			<td align="center">512</td>
 			<td align="center">800</td>
 			<td align="center">200</td>
-			<td align="center">89.1</td>
-			<td align="center">99.6</td>
+			<td align="center">88.1</td>
+			<td align="center">99.1</td>
 			<td align="center"><a href="https://pan.baidu.com/s/1iFdz3RLaatZlEMpSk-Df6g">model</a>&nbsp;|&nbsp;f7yj</td>
 		</tr>
 		<tr>
 			<td align="center">Linear</td>
-			<td align="center">23.52</td>
-			<td align="center">1.30</td>
+			<td align="center">11.17</td>
+			<td align="center">556.66</td>
 			<td align="center">-</td>
 			<td align="center">256</td>
 			<td align="center">90</td>
 			<td align="center">-</td>
-			<td align="center"><b>92.0</b></td>
-			<td align="center"><b>99.8</b></td>
+			<td align="center"><b>90.1</b></td>
+			<td align="center"><b>99.6</b></td>
 			<td align="center"><a href="https://pan.baidu.com/s/1euCl86wEz9_Ucs5o8KAY2w">model</a>&nbsp;|&nbsp;v8mf</td>
 		</tr>
 	</tbody>
